@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Антимонотонность реле</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Антимонотонность в параллельных системах реле</h1>
+        <p><code>x(t) = Σ ξᵢ · Rᵢ(αᵢ, βᵢ)[u(t)]</code></p>
+    </header>
+    <div class="layout">
+        <aside class="panel">
+            <h2>Реле</h2>
+            <div id="relays"></div>
+            <button id="add" class="btn-secondary">+ Добавить реле</button>
+
+            <h2>Вход</h2>
+            <label>Режим
+                <select id="mode">
+                    <option value="ramp">Линейный рост</option>
+                    <option value="sweep">Туда-обратно</option>
+                    <option value="sine">Синусоида</option>
+                    <option value="triangle">Треугольник</option>
+                </select>
+            </label>
+            <div class="grid-2">
+                <label>u_min <input type="number" id="umin" value="-1" step="0.5"></label>
+                <label>u_max <input type="number" id="umax" value="7" step="0.5"></label>
+            </div>
+            <label>Точек <input type="number" id="npts" value="1500" step="100" min="50"></label>
+            <div id="per-par" style="display:none">
+                <div class="grid-2">
+                    <label>Амплитуда <input type="number" id="amp" value="3" step="0.5"></label>
+                    <label>Смещение <input type="number" id="off" value="3" step="0.5"></label>
+                </div>
+                <label>Периодов <input type="number" id="per" value="3" step="1" min="1"></label>
+            </div>
+
+            <button id="run" class="btn-primary">▶ Запустить</button>
+
+            <h2>Пресеты</h2>
+            <button class="preset" data-p="monotone">Монотонность</button>
+            <button class="preset" data-p="antimonotone">Антимонотонность</button>
+            <button class="preset" data-p="overlap">Вложенные пороги</button>
+            <button class="preset" data-p="three">Три реле с +, −, +</button>
+        </aside>
+
+        <main class="content">
+            <div id="err" class="error" style="display:none"></div>
+
+            <div class="tabs">
+                <button class="tab active" data-tab="curve">Кривая x(u)</button>
+                <button class="tab" data-tab="relays">Реле отдельно</button>
+                <button class="tab" data-tab="map">Карта (α, β)</button>
+                <button class="tab" data-tab="time">Реле во времени</button>
+                <button class="tab" data-tab="thermo">Термостат</button>
+            </div>
+
+            <!-- Вкладка: кривая -->
+            <div id="tab-curve" class="tab-panel">
+                <div id="chart"></div>
+            </div>
+
+            <!-- Вкладка: реле отдельно -->
+            <div id="tab-relays" class="tab-panel" style="display:none">
+                <div id="chart-relays"></div>
+            </div>
+
+            <!-- Вкладка: карта (α, β) -->
+            <div id="tab-map" class="tab-panel" style="display:none">
+                <div class="ctrl-grid">
+                    <label>u (фиксированный)
+                        <input type="number" id="map-u" value="2.5" step="0.5">
+                    </label>
+                    <label>Начальное состояние
+                        <select id="map-state">
+                            <option value="0">0 (выключено)</option>
+                            <option value="1">1 (включено)</option>
+                        </select>
+                    </label>
+                    <label>Вес ξ
+                        <input type="number" id="map-xi" value="1.0" step="0.5">
+                    </label>
+                    <label>Сетка
+                        <input type="number" id="map-grid" value="120" step="10" min="20" max="250">
+                    </label>
+                    <label>α_min <input type="number" id="map-amin" value="-1" step="0.5"></label>
+                    <label>α_max <input type="number" id="map-amax" value="8" step="0.5"></label>
+                    <label>β_min <input type="number" id="map-bmin" value="-1" step="0.5"></label>
+                    <label>β_max <input type="number" id="map-bmax" value="8" step="0.5"></label>
+                    <button id="map-run" class="btn-primary">↻ Построить карту</button>
+                </div>
+                <div id="chart-map"></div>
+            </div>
+
+            <!-- Вкладка: реле во времени -->
+            <div id="tab-time" class="tab-panel" style="display:none">
+                <div class="ctrl-grid">
+                    <label>α (верхний порог)
+                        <input type="number" id="rt-alpha" value="2" step="0.5">
+                    </label>
+                    <label>β (нижний порог)
+                        <input type="number" id="rt-beta" value="-2" step="0.5">
+                    </label>
+                    <label>Начальное состояние
+                        <select id="rt-state">
+                            <option value="0">0</option>
+                            <option value="1">1</option>
+                        </select>
+                    </label>
+                    <label>Форма входа
+                        <select id="rt-mode">
+                            <option value="sine">Синусоида</option>
+                            <option value="square">Меандр</option>
+                            <option value="triangle">Треугольник</option>
+                            <option value="ramp">Линейный рост</option>
+                            <option value="damped">Затухающая синусоида</option>
+                        </select>
+                    </label>
+                    <label>Амплитуда
+                        <input type="number" id="rt-amp" value="5" step="0.5">
+                    </label>
+                    <label>Смещение
+                        <input type="number" id="rt-off" value="1" step="0.5">
+                    </label>
+                    <label>Периодов
+                        <input type="number" id="rt-per" value="3" step="0.5">
+                    </label>
+                    <label>Длительность t_end
+                        <input type="number" id="rt-tend" value="20" step="1">
+                    </label>
+                    <label>Точек
+                        <input type="number" id="rt-npts" value="2000" step="100" min="100">
+                    </label>
+                    <button id="rt-run" class="btn-primary">▶ Запустить</button>
+                </div>
+                <div id="chart-time"></div>
+            </div>
+
+            <!-- Вкладка: термостат -->
+            <div id="tab-thermo" class="tab-panel" style="display:none">
+                <div class="ctrl-grid">
+                    <label>T_env (°C) <input type="number" id="th-env" value="5" step="0.5"></label>
+                    <label>T_init (°C) <input type="number" id="th-init" value="18" step="0.5"></label>
+                    <label>P (°C/сек) <input type="number" id="th-p" value="0.5" step="0.1"></label>
+                    <label>λ (теплоотдача) <input type="number" id="th-lam" value="0.02" step="0.005"></label>
+                    <label>T_low <input type="number" id="th-low" value="20" step="0.5"></label>
+                    <label>T_high <input type="number" id="th-high" value="22" step="0.5"></label>
+                    <label>T_set (без гистерезиса) <input type="number" id="th-set" value="21" step="0.5"></label>
+                    <label>dt <input type="number" id="th-dt" value="0.1" step="0.05" min="0.01"></label>
+                    <label>t_end <input type="number" id="th-tend" value="200" step="10" min="10"></label>
+                    <button id="th-run" class="btn-primary">▶ Запустить</button>
+                </div>
+                <div id="chart-thermo"></div>
+            </div>
+
+            <!-- Статистика (для первой вкладки) -->
+            <div class="stats">
+                <div class="card"><span>Монотонность</span><b id="s1">—</b></div>
+                <div class="card"><span>Смен знака x′</span><b id="s2">—</b></div>
+                <div class="card"><span>x (начало)</span><b id="s3">—</b></div>
+                <div class="card"><span>x (конец)</span><b id="s4">—</b></div>
+                <div class="card"><span>Уровней</span><b id="s5">—</b></div>
+                <div class="card"><span>Диапазон</span><b id="s6">—</b></div>
+            </div>
+        </main>
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+</html>
