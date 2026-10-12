@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Антимонотонность реле</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+</head>
+<body>
+    <header>
+        <h1>Антимонотонность в параллельных системах реле</h1>
+        <p><code>σ(t) = Σ ξᵢ · Rᵢ(αᵢ, βᵢ)[u(t)]</code></p>
+    </header>
+    <div class="layout">
+        <aside class="panel">
+            <h2>Реле</h2>
+            <div id="relays"></div>
+            <button id="add" class="btn-secondary">+ Добавить реле</button>
+
+            <h2>Вход</h2>
+            <label>Режим
+                <select id="mode">
+                    <option value="ramp">Линейный рост</option>
+                    <option value="sweep">Туда-обратно</option>
+                    <option value="sine">Синусоида</option>
+                    <option value="triangle">Треугольник</option>
+                </select>
+            </label>
+            <div class="grid-2">
+                <label>u_min <input type="number" id="umin" value="-1" step="0.5"></label>
+                <label>u_max <input type="number" id="umax" value="7" step="0.5"></label>
+            </div>
+            <label>Точек <input type="number" id="npts" value="1500" step="100" min="50"></label>
+            <div id="per-par" style="display:none">
+                <div class="grid-2">
+                    <label>Амплитуда <input type="number" id="amp" value="3" step="0.5"></label>
+                    <label>Смещение <input type="number" id="off" value="3" step="0.5"></label>
+                </div>
+                <label>Периодов <input type="number" id="per" value="3" step="1" min="1"></label>
+            </div>
+
+            <button id="run" class="btn-primary">▶ Запустить</button>
+
+            <h2>Пресеты</h2>
+            <button class="preset" data-p="monotone">Монотонность</button>
+            <button class="preset" data-p="antimonotone">Антимонотонность</button>
+            <button class="preset" data-p="overlap">Вложенные пороги</button>
+            <button class="preset" data-p="three">Три реле с +, −, +</button>
+        </aside>
+
+        <main class="content">
+            <div id="err" class="error" style="display:none"></div>
+
+            <div class="tabs">
+                <button class="tab active" data-tab="curve">Кривая x(u)</button>
+                <button class="tab" data-tab="relays">Реле отдельно</button>
+                <button class="tab" data-tab="map">Карта (α, β)</button>
+                <button class="tab" data-tab="time">Реле во времени</button>
+                <button class="tab" data-tab="thermo">Термостат</button>
+                <button class="tab" data-tab="custom">Кастомный гистерезис</button>
+            </div>
+
+            <div id="tab-curve" class="tab-panel">
+                <div id="chart"></div>
+            </div>
+
+            <div id="tab-relays" class="tab-panel" style="display:none">
+                <div id="chart-relays"></div>
+            </div>
+
+            <div id="tab-map" class="tab-panel" style="display:none">
+                <div class="ctrl-grid">
+                    <label>u (фиксированный) <input type="number" id="map-u" value="2.5" step="0.5"></label>
+                    <label>Начальное состояние
+                        <select id="map-state">
+                            <option value="0">0 (выключено)</option>
+                            <option value="1">1 (включено)</option>
+                        </select>
+                    </label>
+                    <label>Вес ξ <input type="number" id="map-xi" value="1.0" step="0.5"></label>
+                    <label>Сетка <input type="number" id="map-grid" value="120" step="10" min="20" max="250"></label>
+                    <label>α_min <input type="number" id="map-amin" value="-1" step="0.5"></label>
+                    <label>α_max <input type="number" id="map-amax" value="8" step="0.5"></label>
+                    <label>β_min <input type="number" id="map-bmin" value="-1" step="0.5"></label>
+                    <label>β_max <input type="number" id="map-bmax" value="8" step="0.5"></label>
+                    <button id="map-run" class="btn-primary">↻ Построить карту</button>
+                </div>
+                <div id="chart-map"></div>
+            </div>
+
+            <div id="tab-time" class="tab-panel" style="display:none">
+                <div class="ctrl-grid">
+                    <label>α (верхний порог) <input type="number" id="rt-alpha" value="2" step="0.5"></label>
+                    <label>β (нижний порог) <input type="number" id="rt-beta" value="-2" step="0.5"></label>
+                    <label>Начальное состояние
+                        <select id="rt-state">
+                            <option value="0">0</option>
+                            <option value="1">1</option>
+                        </select>
+                    </label>
+                    <label>Форма входа
+                        <select id="rt-mode">
+                            <option value="sine">Синусоида</option>
+                            <option value="square">Меандр</option>
+                            <option value="triangle">Треугольник</option>
+                            <option value="ramp">Линейный рост</option>
+                            <option value="damped">Затухающая синусоида</option>
+                        </select>
+                    </label>
+                    <label>Амплитуда <input type="number" id="rt-amp" value="5" step="0.5"></label>
+                    <label>Смещение <input type="number" id="rt-off" value="1" step="0.5"></label>
+                    <label>Периодов <input type="number" id="rt-per" value="3" step="0.5"></label>
+                    <label>Длительность t_end <input type="number" id="rt-tend" value="20" step="1"></label>
+                    <label>Точек <input type="number" id="rt-npts" value="2000" step="100" min="100"></label>
+                    <button id="rt-run" class="btn-primary">▶ Запустить</button>
+                </div>
+                <div id="chart-time"></div>
+            </div>
+
+            <div id="tab-thermo" class="tab-panel" style="display:none">
+                <div class="ctrl-grid">
+                    <label>T_env (°C) <input type="number" id="th-env" value="5" step="0.5"></label>
+                    <label>T_init (°C) <input type="number" id="th-init" value="18" step="0.5"></label>
+                    <label>P (°C/сек) <input type="number" id="th-p" value="0.5" step="0.1"></label>
+                    <label>λ (теплоотдача) <input type="number" id="th-lam" value="0.02" step="0.005"></label>
+                    <label>T_low <input type="number" id="th-low" value="20" step="0.5"></label>
+                    <label>T_high <input type="number" id="th-high" value="22" step="0.5"></label>
+                    <label>T_set (без гистерезиса) <input type="number" id="th-set" value="21" step="0.5"></label>
+                    <label>dt <input type="number" id="th-dt" value="0.1" step="0.05" min="0.01"></label>
+                    <label>t_end <input type="number" id="th-tend" value="200" step="10" min="10"></label>
+                    <button id="th-run" class="btn-primary">▶ Запустить</button>
+                </div>
+                <div id="chart-thermo"></div>
+            </div>
+
+            <!-- ================= КАСТОМНЫЙ ГИСТЕРЕЗИС ================= -->
+            <div id="tab-custom" class="tab-panel" style="display:none">
+                <div class="custom-layout">
+
+                    <!-- Поля -->
+                    <div class="custom-fields">
+                        <div class="expr-grid">
+                            <label>
+                                <span>Верхний порог α</span>
+                                <input type="text" id="ch-alpha" value=""
+                                       spellcheck="false" placeholder="например: 1.5">
+                            </label>
+                            <label>
+                                <span>Нижний порог β</span>
+                                <input type="text" id="ch-beta" value=""
+                                       spellcheck="false" placeholder="например: -1.5">
+                            </label>
+                        </div>
+
+                        <div class="expr-grid expr-1">
+                            <label>
+                                <span>Функция σ(t)</span>
+                                <input type="text" id="ch-func" value=""
+                                       spellcheck="false"
+                                       placeholder="например: sin(t)   или   cos(2*t)*exp(-t/10)">
+                            </label>
+                        </div>
+
+                        <div class="ctrl-grid">
+                            <label>Начальное состояние (0 или 1)
+                                <input type="text" id="ch-state" value="" placeholder="0">
+                            </label>
+                            <label>t от
+                                <input type="text" id="ch-tmin" value="" placeholder="0">
+                            </label>
+                            <label>t до
+                                <input type="text" id="ch-tmax" value="" placeholder="20">
+                            </label>
+                            <label>Точек
+                                <input type="text" id="ch-npts" value="" placeholder="2000">
+                            </label>
+                            <button id="ch-run" class="btn-primary">▶ Построить</button>
+                        </div>
+                    </div>
+
+                    <!-- Кот-помощник -->
+                    <div class="cat-helper">
+                        <div class="cat-bubble">
+                            <span id="cat-text">Привет! Я кот-помощник. Наведи на любое поле — расскажу, что в него писать.</span>
+                        </div>
+                        <svg class="cat-svg" viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">
+                            <!-- хвост -->
+                            <path d="M 25 105 Q 5 95 12 70 Q 18 55 28 70"
+                                  stroke="#f4a261" stroke-width="6"
+                                  fill="none" stroke-linecap="round"/>
+                            <!-- тело -->
+                            <ellipse cx="60" cy="102" rx="32" ry="26" fill="#f4a261"/>
+                            <!-- лапки -->
+                            <ellipse cx="45" cy="126" rx="11" ry="6" fill="#f4a261"/>
+                            <ellipse cx="75" cy="126" rx="11" ry="6" fill="#f4a261"/>
+                            <!-- голова -->
+                            <circle cx="60" cy="55" r="33" fill="#f4a261"/>
+                            <!-- ушки -->
+                            <polygon points="33,35 38,8 55,30" fill="#f4a261"/>
+                            <polygon points="87,35 82,8 65,30" fill="#f4a261"/>
+                            <polygon points="39,32 42,16 53,31" fill="#f7c9a8"/>
+                            <polygon points="81,32 78,16 67,31" fill="#f7c9a8"/>
+                            <!-- глаза -->
+                            <ellipse cx="48" cy="55" rx="4.5" ry="7" fill="#2c3e50"/>
+                            <ellipse cx="72" cy="55" rx="4.5" ry="7" fill="#2c3e50"/>
+                            <circle cx="49" cy="53" r="1.6" fill="#ffffff"/>
+                            <circle cx="73" cy="53" r="1.6" fill="#ffffff"/>
+                            <!-- нос -->
+                            <polygon points="60,66 57,70 63,70" fill="#e76f51"/>
+                            <!-- рот -->
+                            <path d="M 60 70 Q 55 76 51 71 M 60 70 Q 65 76 69 71"
+                                  stroke="#2c3e50" stroke-width="1.4"
+                                  fill="none" stroke-linecap="round"/>
+                            <!-- усы слева -->
+                            <line x1="22" y1="62" x2="43" y2="65" stroke="#2c3e50" stroke-width="0.9"/>
+                            <line x1="22" y1="69" x2="43" y2="69" stroke="#2c3e50" stroke-width="0.9"/>
+                            <!-- усы справа -->
+                            <line x1="77" y1="65" x2="98" y2="62" stroke="#2c3e50" stroke-width="0.9"/>
+                            <line x1="77" y1="69" x2="98" y2="69" stroke="#2c3e50" stroke-width="0.9"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <div id="chart-custom"></div>
+            </div>
+            <!-- ================= / КАСТОМНЫЙ ГИСТЕРЕЗИС ================= -->
+
+            <div class="stats">
+                <div class="card"><span>Монотонность</span><b id="s1">—</b></div>
+                <div class="card"><span>Смен знака x′</span><b id="s2">—</b></div>
+                <div class="card"><span>x (начало)</span><b id="s3">—</b></div>
+                <div class="card"><span>x (конец)</span><b id="s4">—</b></div>
+                <div class="card"><span>Уровней</span><b id="s5">—</b></div>
+                <div class="card"><span>Диапазон</span><b id="s6">—</b></div>
+            </div>
+        </main>
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+</html>
