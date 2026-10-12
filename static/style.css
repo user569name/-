@@ -74,15 +74,6 @@ header code { font-family: 'JetBrains Mono', monospace; background: rgba(74,222,
 /* ============================================================
    КАСТОМНЫЙ ГИСТЕРЕЗИС
    ============================================================ */
-.custom-layout {
-    display: grid;
-    grid-template-columns: 1fr 220px;
-    gap: 16px;
-    align-items: start;
-}
-
-.custom-fields { display: flex; flex-direction: column; gap: 12px; }
-
 .expr-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -94,12 +85,8 @@ header code { font-family: 'JetBrains Mono', monospace; background: rgba(74,222,
 }
 .expr-grid.expr-1 { grid-template-columns: 1fr; }
 
-.expr-grid label {
-    display: flex; flex-direction: column; gap: 6px; margin: 0;
-}
-.expr-grid label span {
-    font-size: 12px; color: var(--dim); font-weight: 600;
-}
+.expr-grid label { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.expr-grid label span { font-size: 12px; color: var(--dim); font-weight: 600; }
 .expr-grid input[type="text"] {
     padding: 10px 12px;
     background: var(--card);
@@ -120,57 +107,103 @@ header code { font-family: 'JetBrains Mono', monospace; background: rgba(74,222,
     font-style: italic;
 }
 
-/* --- Кот-помощник --- */
+/* ============================================================
+   КОТ-ПОМОЩНИК — ФИКСИРОВАННЫЙ, ВСЕГДА ВИДЕН
+   ============================================================ */
 .cat-helper {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 1000;
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: flex-end;
     gap: 6px;
-    padding: 12px 8px;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    position: sticky;
-    top: 20px;
+    pointer-events: none;
+    max-width: 280px;
 }
 
 .cat-bubble {
     background: #fbbf24;
     color: #0f172a;
-    padding: 10px 12px;
+    padding: 12px 14px;
     border-radius: 12px;
-    font-size: 12px;
+    font-size: 12.5px;
     line-height: 1.45;
     position: relative;
     font-weight: 500;
     text-align: left;
-    width: 100%;
-}
-.cat-bubble::after {
-    content: '';
-    position: absolute;
-    bottom: -8px;
-    left: 30px;
-    width: 0; height: 0;
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-top: 8px solid #fbbf24;
+    box-shadow: 0 8px 24px rgba(0,0,0,.5);
+    pointer-events: auto;
+    transition: opacity .25s, transform .25s;
+    animation: cat-bubble-in .35s ease;
+    border: 2px solid #f59e0b;
 }
 .cat-bubble::before {
     content: '🐾';
     position: absolute;
-    top: -10px; right: 8px;
-    font-size: 14px;
+    top: -12px;
+    right: 12px;
+    font-size: 16px;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,.2));
+}
+.cat-bubble::after {
+    content: '';
+    position: absolute;
+    bottom: -9px;
+    right: 34px;
+    width: 0; height: 0;
+    border-left: 9px solid transparent;
+    border-right: 9px solid transparent;
+    border-top: 9px solid #fbbf24;
+}
+
+@keyframes cat-bubble-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.cat-bubble.bump {
+    animation: cat-bump .35s ease;
+}
+@keyframes cat-bump {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.05); }
+    100% { transform: scale(1); }
 }
 
 .cat-svg {
-    width: 120px;
-    height: 140px;
-    filter: drop-shadow(0 4px 8px rgba(0,0,0,.3));
+    width: 110px;
+    height: 130px;
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,.5));
+    pointer-events: auto;
+    transition: transform .25s;
+}
+.cat-helper.cat-active .cat-svg {
+    transform: translateY(-4px) scale(1.03);
+}
+
+/* Пульсирующая точка рядом с котом, когда поле в фокусе */
+.cat-helper.cat-active::before {
+    content: '';
+    position: absolute;
+    top: 12px;
+    left: -4px;
+    width: 10px; height: 10px;
+    background: var(--accent);
+    border-radius: 50%;
+    box-shadow: 0 0 0 0 rgba(74,222,128,.7);
+    animation: cat-pulse 1.4s infinite;
+}
+@keyframes cat-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(74,222,128,.7); }
+    70%  { box-shadow: 0 0 0 10px rgba(74,222,128,0); }
+    100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); }
 }
 
 @media (max-width: 900px) {
-    .custom-layout { grid-template-columns: 1fr; }
-    .cat-helper { position: static; }
+    .cat-helper { max-width: 180px; bottom: 12px; right: 12px; }
+    .cat-svg { width: 80px; height: 100px; }
+    .cat-bubble { font-size: 11px; padding: 8px 10px; }
     .expr-grid { grid-template-columns: 1fr; }
 }

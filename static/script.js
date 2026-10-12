@@ -1,4 +1,178 @@
 // ============================================================
+// КОТ-ПОМОЩНИК — ПОДСКАЗКИ ДЛЯ ВСЕХ ПОЛЕЙ ВСЕХ ВКЛАДОК
+// ============================================================
+const catText = document.getElementById('cat-text');
+const catHelper = document.getElementById('cat-helper');
+
+const CAT_HINTS = {
+    // ---- Левая панель: реле ----
+    'add':       'Нажми — добавлю ещё одно реле в систему.',
+    // Поля реле (динамические) — обрабатываются отдельно по классам.
+
+    // ---- Левая панель: вход ----
+    'mode':  'Форма входного сигнала: линейный рост, туда-обратно, синусоида или треугольник.',
+    'umin':  'Минимальное значение входа u.',
+    'umax':  'Максимальное значение входа u. Должно быть больше u_min.',
+    'npts':  'Сколько точек для отрисовки графика. 1000–3000 — оптимально.',
+    'amp':   'Амплитуда периодического сигнала.',
+    'off':   'Постоянное смещение (среднее значение) сигнала.',
+    'per':   'Сколько периодов показать на графике.',
+    'run':   'Жми сюда — построю график σ(u).',
+
+    // ---- Карта (α, β) ----
+    'map-u':     'Фиксированное значение входа u, при котором строится карта.',
+    'map-state': 'Начальное состояние реле: 0 (выключено) или 1 (включено).',
+    'map-xi':    'Вес ξ — коэффициент усиления реле.',
+    'map-grid':  'Разрешение сетки: больше — детальнее, но медленнее. 60–150 — нормально.',
+    'map-amin':  'Минимальное значение α (верхний порог) на карте.',
+    'map-amax':  'Максимальное значение α на карте.',
+    'map-bmin':  'Минимальное значение β (нижний порог) на карте.',
+    'map-bmax':  'Максимальное значение β на карте.',
+    'map-run':   'Жми сюда — нарисую карту выхода реле в плоскости (α, β).',
+
+    // ---- Реле во времени ----
+    'rt-alpha': 'Верхний порог α: при u ≥ α реле включается.',
+    'rt-beta':  'Нижний порог β: при u ≤ β реле выключается. β < α.',
+    'rt-state': 'Начальное состояние реле.',
+    'rt-mode':  'Форма входного сигнала σ(t).',
+    'rt-amp':   'Амплитуда сигнала.',
+    'rt-off':   'Постоянное смещение сигнала.',
+    'rt-per':   'Сколько периодов уложить в интервал [0, t_end].',
+    'rt-tend':  'Длительность наблюдения в секундах.',
+    'rt-npts':  'Число точек для отрисовки.',
+    'rt-run':   'Жми сюда — построю график сигнала и выход реле.',
+
+    // ---- Термостат ----
+    'th-env':  'Температура снаружи. Тепло уходит в эту среду.',
+    'th-init': 'Начальная температура в комнате.',
+    'th-p':    'Мощность нагревателя — на сколько градусов в секунду греет при включении.',
+    'th-lam':  'Коэффициент теплоотдачи — как быстро тепло уходит наружу.',
+    'th-low':  'Нижний порог: при T < T_low нагреватель включается.',
+    'th-high': 'Верхний порог: при T > T_high нагреватель выключается.',
+    'th-set':  'Порог для режима БЕЗ гистерезиса (один порог).',
+    'th-dt':   'Шаг по времени. Меньше — точнее, но медленнее.',
+    'th-tend': 'Длительность наблюдения.',
+    'th-run':  'Жми сюда — сравню термостат с гистерезисом и без него.',
+
+    // ---- Кастомный гистерезис ----
+    'ch-alpha': 'Верхний порог α. Как только функция σ(t) поднимется до α — реле включится.',
+    'ch-beta':  'Нижний порог β. Как только σ(t) опустится до β — реле выключится. β < α.',
+    'ch-func':  'Функция от t. Например: sin(t), cos(2*t), tan(t/3), exp(-t/10)*sin(t), t**2 - 5.',
+    'ch-state': 'Начальное состояние реле: 0 — выключено, 1 — включено.',
+    'ch-tmin':  'Время, с которого начинается график. Обычно 0.',
+    'ch-tmax':  'Время, на котором график заканчивается. Например: 20.',
+    'ch-npts':  'Сколько точек для отрисовки. 1000–3000 — нормально.',
+    'ch-run':   'Жми сюда — построю график функции и выход реле!',
+};
+
+// Подсказки для динамических полей реле (по CSS-классам)
+const RELAY_HINTS = {
+    'a': 'αᵢ — верхний порог i-го реле.',
+    'b': 'βᵢ — нижний порог i-го реле. Должно быть βᵢ < αᵢ.',
+    'x': 'ξᵢ — вес i-го реле. Положительный — увеличивает выход, отрицательный — уменьшает.',
+    's': 's₀ — начальное состояние реле: 0 или 1.',
+};
+
+const DEFAULT_TEXT = 'Привет! Я кот-помощник. Наведи на любое поле — расскажу, что в него писать.';
+const TAB_GREETINGS = {
+    'curve':   'Вкладка «Кривая σ(u)»: строит выход системы σ как функцию входа u.',
+    'relays':  'Вкладка «Реле отдельно»: показывает вклад каждого реле в суммарный выход.',
+    'map':     'Вкладка «Карта (α, β)»: тепловая карта выхода реле по порогам.',
+    'time':    'Вкладка «Реле во времени»: сигнал σ(t) и выход одного реле.',
+    'thermo':  'Вкладка «Термостат»: сравнение гистерезисного и обычного управления.',
+    'custom':  'Вкладка «Кастомный гистерезис»: впиши свою функцию σ(t) и пороги.',
+};
+
+function setCatText(text, bump) {
+    if (catText.textContent === text) return;
+    catText.textContent = text;
+    catText.classList.remove('bump');
+    void catText.offsetWidth;               // перезапуск анимации
+    catText.classList.add('bump');
+}
+
+// ------------------------------------------------------------
+// Навешиваем подсказки на все статические поля
+// ------------------------------------------------------------
+function attachHints() {
+    // 1) По id
+    Object.keys(CAT_HINTS).forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('focus', () => setCatText(CAT_HINTS[id]));
+        el.addEventListener('mouseenter', () => setCatText(CAT_HINTS[id]));
+        el.addEventListener('blur', () => setTimeout(resetCat, 100));
+        el.addEventListener('mouseleave', () => setTimeout(resetCat, 100));
+    });
+
+    // 2) По классам (динамические реле) — навешиваем через делегирование
+    document.querySelectorAll('.relay-row input, .relay-row select').forEach(el => {
+        const cls = el.classList[0] || el.tagName.toLowerCase();
+        const hint = RELAY_HINTS[cls];
+        if (!hint) return;
+        el.addEventListener('focus', () => setCatText(hint));
+        el.addEventListener('mouseenter', () => setCatText(hint));
+        el.addEventListener('blur', () => setTimeout(resetCat, 100));
+        el.addEventListener('mouseleave', () => setTimeout(resetCat, 100));
+    });
+}
+
+// Кот приходит в активное состояние, пока поле в фокусе
+function markActive(on) {
+    catHelper.classList.toggle('cat-active', on);
+}
+
+// Возврат к приветствию активной вкладки
+let currentTab = 'curve';
+function resetCat() {
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'SELECT')) return;
+    setCatText(TAB_GREETINGS[currentTab] || DEFAULT_TEXT);
+    markActive(false);
+}
+
+// ------------------------------------------------------------
+// Делегирование для динамически добавляемых реле
+// ------------------------------------------------------------
+document.addEventListener('focusin', e => {
+    const el = e.target;
+    if (!(el instanceof HTMLInputElement || el instanceof HTMLSelectElement)) return;
+    markActive(true);
+
+    if (el.id && CAT_HINTS[el.id]) {
+        setCatText(CAT_HINTS[el.id]);
+        return;
+    }
+    if (el.closest('.relay-row')) {
+        const cls = el.classList[0] || el.tagName.toLowerCase();
+        if (RELAY_HINTS[cls]) setCatText(RELAY_HINTS[cls]);
+    }
+});
+
+document.addEventListener('focusout', () => setTimeout(resetCat, 80));
+
+document.addEventListener('mouseover', e => {
+    const el = e.target;
+    if (!(el instanceof HTMLInputElement || el instanceof HTMLSelectElement)) return;
+    markActive(true);
+
+    if (el.id && CAT_HINTS[el.id]) {
+        setCatText(CAT_HINTS[el.id]);
+        return;
+    }
+    if (el.closest('.relay-row')) {
+        const cls = el.classList[0] || el.tagName.toLowerCase();
+        if (RELAY_HINTS[cls]) setCatText(RELAY_HINTS[cls]);
+    }
+});
+
+document.addEventListener('mouseout', e => {
+    const el = e.target;
+    if (!(el instanceof HTMLInputElement || el instanceof HTMLSelectElement)) return;
+    setTimeout(resetCat, 80);
+});
+
+// ============================================================
 // РЕЛЕ — УПРАВЛЕНИЕ СПИСКОМ
 // ============================================================
 const container = document.getElementById('relays');
@@ -43,7 +217,7 @@ setRelays([
 document.getElementById('add').onclick = () => container.appendChild(row(3, 1, 1, 0));
 
 // ============================================================
-// ВХОД (первая вкладка)
+// ВХОД
 // ============================================================
 const mode = document.getElementById('mode');
 const perPar = document.getElementById('per-par');
@@ -80,6 +254,9 @@ document.querySelectorAll('.tab').forEach(tab => {
         const panel = document.getElementById('tab-' + tab.dataset.tab);
         panel.style.display = 'flex';
 
+        currentTab = tab.dataset.tab;
+        setCatText(TAB_GREETINGS[currentTab] || DEFAULT_TEXT);
+
         ['chart','chart-relays','chart-map','chart-time','chart-thermo','chart-custom'].forEach(id => {
             const el = document.getElementById(id);
             if (el && el.data) Plotly.Plots.resize(el);
@@ -88,10 +265,6 @@ document.querySelectorAll('.tab').forEach(tab => {
         if (tab.dataset.tab === 'map' && !document.getElementById('chart-map').data) runMap();
         if (tab.dataset.tab === 'time' && !document.getElementById('chart-time').data) runTime();
         if (tab.dataset.tab === 'thermo' && !document.getElementById('chart-thermo').data) runThermo();
-
-        if (tab.dataset.tab === 'custom') {
-            catText.textContent = 'Наведи на любое поле — расскажу, что в него писать.';
-        }
     };
 });
 
@@ -104,7 +277,7 @@ function baseLayout(shapes, yLabel) {
         plot_bgcolor: '#0f172a',
         font: { color: '#e2e8f0', size: 12 },
         xaxis: { title: 'u (вход)', gridcolor: '#1e293b', linecolor: '#334155' },
-        yaxis: { title: yLabel || 'x (выход)', gridcolor: '#1e293b', linecolor: '#334155' },
+        yaxis: { title: yLabel || 'σ (выход)', gridcolor: '#1e293b', linecolor: '#334155' },
         margin: { l: 60, r: 20, t: 20, b: 50 },
         hovermode: 'x unified',
         shapes: shapes || [],
@@ -117,7 +290,7 @@ function showError(msg) { errBox.textContent = '⚠ ' + msg; errBox.style.displa
 function clearError() { errBox.style.display = 'none'; }
 
 // ============================================================
-// ВКЛАДКА 1
+// ВКЛАДКА 1: СИМУЛЯЦИЯ
 // ============================================================
 const btn = document.getElementById('run');
 async function runSim() {
@@ -226,7 +399,7 @@ function stats(s) {
 }
 
 // ============================================================
-// КАРТА (α, β)
+// КАРТА
 // ============================================================
 const mapBtn = document.getElementById('map-run');
 async function runMap() {
@@ -415,38 +588,12 @@ function drawThermo(d) {
 // КАСТОМНЫЙ ГИСТЕРЕЗИС
 // ============================================================
 const chBtn = document.getElementById('ch-run');
-const catText = document.getElementById('cat-text');
-
-const CAT_HINTS = {
-    'ch-alpha': 'Это верхний порог α. Как только функция σ(t) поднимется до α — реле включится.',
-    'ch-beta':  'Это нижний порог β. Как только σ(t) опустится до β — реле выключится. Должно быть β < α.',
-    'ch-func':  'Функция от t. Например: sin(t), cos(2*t), tan(t/3), exp(-t/10)*sin(t), t**2 - 5.',
-    'ch-state': 'Начальное состояние реле: 0 — выключено, 1 — включено.',
-    'ch-tmin':  'Время, с которого начинается график. Обычно 0.',
-    'ch-tmax':  'Время, на котором график заканчивается. Например: 20.',
-    'ch-npts':  'Сколько точек для отрисовки. 1000–3000 — нормально.',
-    'ch-run':   'Жми сюда — построю график функции и выход реле!',
-};
-
-document.querySelectorAll('.custom-fields input, #ch-run').forEach(el => {
-    el.addEventListener('focus', () => {
-        if (CAT_HINTS[el.id]) catText.textContent = CAT_HINTS[el.id];
-    });
-    el.addEventListener('blur', () => {
-        setTimeout(() => {
-            if (document.activeElement &&
-                (document.activeElement.classList.contains('custom-fields') ||
-                 document.activeElement.tagName === 'INPUT')) return;
-            catText.textContent = 'Наведи на любое поле — расскажу, что в него писать.';
-        }, 100);
-    });
-});
 
 async function runCustom() {
     clearError();
     chBtn.disabled = true;
     chBtn.textContent = '⏳ Считаю...';
-    catText.textContent = 'Считаю, строю график...';
+    setCatText('Считаю, строю график...');
 
     const payload = {
         alpha:    document.getElementById('ch-alpha').value.trim(),
@@ -469,7 +616,7 @@ async function runCustom() {
 
     if (missing.length) {
         showError('Заполни поля: ' + missing.join(', '));
-        catText.textContent = 'Ой! Ты забыл: ' + missing.join(', ');
+        setCatText('Ой! Ты забыл: ' + missing.join(', '));
         chBtn.disabled = false;
         chBtn.textContent = '▶ Построить';
         return;
@@ -484,13 +631,13 @@ async function runCustom() {
         const data = await r.json();
         if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
         drawCustom(data);
-        catText.textContent =
+        setCatText(
             `Готово! Переключений: ${data.switches}, ` +
-            `duty = ${(data.duty_cycle*100).toFixed(1)}%. ` +
-            `Меняй пороги или функцию — и снова жми «Построить».`;
+            `duty = ${(data.duty_cycle*100).toFixed(1)}%.`
+        );
     } catch (e) {
         showError(e.message);
-        catText.textContent = 'Ой! ' + e.message;
+        setCatText('Ой! ' + e.message);
     } finally {
         chBtn.disabled = false;
         chBtn.textContent = '▶ Построить';
@@ -500,22 +647,15 @@ chBtn.onclick = runCustom;
 
 function drawCustom(d) {
     const traces = [
-        {
-            x: d.t, y: d.sigma_in, type: 'scatter', mode: 'lines',
-            line: { color: '#60a5fa', width: 2.2 },
-            name: `σ(t) = ${d.func}`,
-            yaxis: 'y',
-            hovertemplate: 't=%{x:.3f}<br>σ=%{y:.4f}<extra></extra>',
-        },
-        {
-            x: d.t, y: d.sigma_out, type: 'scatter', mode: 'lines',
-            line: { color: '#4ade80', width: 2, shape: 'hv' },
-            name: 'Выход реле',
-            yaxis: 'y2',
-            hovertemplate: 't=%{x:.3f}<br>реле=%{y}<extra></extra>',
-        },
+        { x: d.t, y: d.sigma_in, type: 'scatter', mode: 'lines',
+          line: { color: '#60a5fa', width: 2.2 },
+          name: `σ(t) = ${d.func}`, yaxis: 'y',
+          hovertemplate: 't=%{x:.3f}<br>σ=%{y:.4f}<extra></extra>' },
+        { x: d.t, y: d.sigma_out, type: 'scatter', mode: 'lines',
+          line: { color: '#4ade80', width: 2, shape: 'hv' },
+          name: 'Выход реле', yaxis: 'y2',
+          hovertemplate: 't=%{x:.3f}<br>реле=%{y}<extra></extra>' },
     ];
-
     const t0 = d.t[0], t1 = d.t[d.t.length - 1];
     const shapes = [
         { type: 'line', x0: t0, x1: t1, y0: d.alpha, y1: d.alpha,
@@ -525,10 +665,8 @@ function drawCustom(d) {
           line: { color: '#22c55e', width: 1.5, dash: 'dash' },
           yref: 'y', xref: 'x' },
     ];
-
     const layout = {
-        paper_bgcolor: '#0f172a',
-        plot_bgcolor: '#0f172a',
+        paper_bgcolor: '#0f172a', plot_bgcolor: '#0f172a',
         font: { color: '#e2e8f0', size: 12 },
         xaxis: { title: 't', gridcolor: '#1e293b', linecolor: '#334155' },
         yaxis: { title: 'σ(t)', gridcolor: '#1e293b', linecolor: '#334155' },
@@ -547,15 +685,16 @@ function drawCustom(d) {
               text: `α = ${d.alpha} · β = ${d.beta} · ` +
                     `переключений: <b>${d.switches}</b> · ` +
                     `duty = ${(d.duty_cycle*100).toFixed(1)}%`,
-              showarrow: false, font: { color: '#94a3b8', size: 12 },
-              align: 'right' },
+              showarrow: false, font: { color: '#94a3b8', size: 12 }, align: 'right' },
         ],
     };
-
     Plotly.react('chart-custom', traces, layout, { responsive: true, displaylogo: false });
 }
 
 // ============================================================
-// АВТОЗАПУСК
+// СТАРТ
 // ============================================================
-window.addEventListener('load', runSim);
+window.addEventListener('load', () => {
+    runSim();
+    setTimeout(attachHints, 200);   // дождёмся отрисовки реле
+});
